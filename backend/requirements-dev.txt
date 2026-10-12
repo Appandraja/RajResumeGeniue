@@ -1,0 +1,9 @@
+-r requirements.txt
+
+pytest>=9.1.0,<10
+pytest-cov>=7.1.0,<8
+pytest-asyncio>=1.4.0,<2
+ruff>=0.17.0,<1.0
+mypy>=2.4.0,<3
+pypdf>=6.20.1,<7
+pip-audit>=2.9.0,<3

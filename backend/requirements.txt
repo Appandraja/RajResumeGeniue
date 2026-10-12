@@ -1,0 +1,23 @@
+# Floors are the versions this project is tested against; ceilings stop surprise majors.
+# Web framework
+fastapi>=0.143.0,<0.200
+uvicorn[standard]>=0.54.0,<1.0
+email-validator>=2.3.0,<3.0
+
+# Config / validation
+pydantic>=2.14.0,<3.0
+pydantic-settings>=2.15.0,<3.0
+
+# Database
+sqlalchemy>=2.1.4,<2.2
+alembic>=1.20.0,<2.0
+psycopg2-binary>=2.9.13,<3.0
+
+# Auth (JWT, bcrypt, Google OAuth via httpx)
+pyjwt>=2.15.1,<3.0
+bcrypt>=5.0.0,<6.0
+httpx>=0.28.1,<1.0
+
+# Export (text-selectable PDF; pure Python, no native deps on Windows/Docker)
+reportlab>=5.0.1,<6.0
+python-docx>=1.2.0,<2.0
