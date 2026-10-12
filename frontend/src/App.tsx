@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { NativeAuthListener } from './components/auth/NativeAuthListener';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import AuthCallbackPage from './pages/AuthCallbackPage';
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <NativeAuthListener />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 

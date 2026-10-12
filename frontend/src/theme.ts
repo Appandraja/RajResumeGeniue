@@ -29,7 +29,13 @@ export const theme = extendTheme({
   },
   styles: {
     global: {
-      body: { bg: 'gray.50', color: 'gray.800' },
+      body: {
+        bg: 'gray.50',
+        color: 'gray.800',
+        // Keep content clear of the status/navigation bars on Android (edge-to-edge).
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      },
     },
   },
   components: {

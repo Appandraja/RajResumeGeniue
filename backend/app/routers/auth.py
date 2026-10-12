@@ -1,6 +1,7 @@
 """Authentication endpoints."""
 
 import logging
+from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Response, status
@@ -27,6 +28,9 @@ from app.services import auth_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Custom URL scheme registered by the Android app (see AndroidManifest.xml).
+MOBILE_CALLBACK_URL = "rajresumegenie://auth/callback"
 
 
 @router.post(
@@ -72,10 +76,28 @@ async def update_me(
 
 
 @router.get("/google", dependencies=[Depends(limit_google)])
-async def google_login() -> RedirectResponse:
+async def google_login(client: Literal["web", "mobile"] = "web") -> RedirectResponse:
+    """Start Google sign-in. The mobile app passes `client=mobile` to get a deep-link return."""
     if not oauth.is_configured():
         raise BadRequestError("Google OAuth is not configured")
-    return RedirectResponse(oauth.build_authorization_url())
+    return RedirectResponse(oauth.build_authorization_url(client))
+
+
+def _callback_base(client: str) -> str:
+    """Where to send the user after Google: the web app page or the mobile app deep link."""
+    if client == oauth.CLIENT_MOBILE:
+        return MOBILE_CALLBACK_URL
+    return f"{settings.FRONTEND_URL.rstrip('/')}/auth/callback"
+
+
+def _client_from_state(state: str | None) -> str:
+    """Best-effort client lookup for error redirects; unknown or invalid state means web."""
+    if not state:
+        return oauth.CLIENT_WEB
+    try:
+        return oauth.verify_state(state)
+    except BadRequestError:
+        return oauth.CLIENT_WEB
 
 
 @router.get("/google/callback")
@@ -85,15 +107,15 @@ async def google_callback(
     error: str | None = None,
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
-    frontend_callback = f"{settings.FRONTEND_URL.rstrip('/')}/auth/callback"
     if error is not None:
         logger.info("Google OAuth denied: %s", error)
-        return RedirectResponse(f"{frontend_callback}#{urlencode({'error': error})}")
+        base = _callback_base(_client_from_state(state))
+        return RedirectResponse(f"{base}#{urlencode({'error': error})}")
     if not oauth.is_configured():
         raise BadRequestError("Google OAuth is not configured")
     if not code or not state:
         raise BadRequestError("Missing code or state")
-    oauth.verify_state(state)
+    client = oauth.verify_state(state)
     google_token = await oauth.exchange_code(code)
     userinfo = await oauth.fetch_userinfo(google_token)
     user = auth_service.get_or_create_google_user(db, userinfo)
@@ -101,4 +123,4 @@ async def google_callback(
     fragment = urlencode(
         {"access_token": tokens.access_token, "refresh_token": tokens.refresh_token}
     )
-    return RedirectResponse(f"{frontend_callback}#{fragment}")
+    return RedirectResponse(f"{_callback_base(client)}#{fragment}")

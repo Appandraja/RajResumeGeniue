@@ -26,19 +26,29 @@ def is_configured() -> bool:
     return bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)
 
 
-def create_state() -> str:
-    """Create a signed, short-lived `state` value (CSRF protection)."""
+CLIENT_WEB = "web"
+CLIENT_MOBILE = "mobile"
+CLIENTS = (CLIENT_WEB, CLIENT_MOBILE)
+
+
+def create_state(client: str = CLIENT_WEB) -> str:
+    """Create a signed, short-lived `state` value (CSRF protection).
+
+    `client` records which app started the flow ("web" or "mobile") so the callback
+    can return the user to the right place (web page vs. the app's deep link).
+    """
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "type": _STATE_TYPE,
         "nonce": secrets.token_urlsafe(16),
+        "client": client if client in CLIENTS else CLIENT_WEB,
         "exp": now + timedelta(minutes=STATE_TTL_MINUTES),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def verify_state(state: str) -> None:
-    """Raise BadRequestError unless `state` is a valid signed state token."""
+def verify_state(state: str) -> str:
+    """Return the client ("web"/"mobile") or raise BadRequestError for an invalid state."""
     try:
         payload = jwt.decode(
             state,
@@ -50,16 +60,18 @@ def verify_state(state: str) -> None:
         raise BadRequestError("Invalid or expired OAuth state") from exc
     if payload.get("type") != _STATE_TYPE:
         raise BadRequestError("Invalid or expired OAuth state")
+    client = payload.get("client")
+    return client if client in CLIENTS else CLIENT_WEB
 
 
-def build_authorization_url() -> str:
+def build_authorization_url(client: str = CLIENT_WEB) -> str:
     """Return the Google consent-screen URL including a signed state."""
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
         "response_type": "code",
         "scope": "openid email profile",
-        "state": create_state(),
+        "state": create_state(client),
         "access_type": "online",
         "prompt": "select_account",
     }

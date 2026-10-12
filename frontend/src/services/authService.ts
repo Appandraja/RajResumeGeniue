@@ -1,5 +1,6 @@
 import axios from 'axios';
 import api, { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearTokens, setTokens } from './api';
+import { isNativeApp } from '../lib/platform';
 import type { AuthTokens, User } from '../types';
 
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -69,8 +70,10 @@ export async function updateMe(payload: { full_name: string }): Promise<User> {
   return data;
 }
 
+/** Google sign-in start URL. The Android app asks for a deep-link return via `client=mobile`. */
 export function googleLoginUrl(): string {
-  return `${API_URL}/auth/google`;
+  const base = `${API_URL}/auth/google`;
+  return isNativeApp() ? `${base}?client=mobile` : base;
 }
 
 export function hasStoredSession(): boolean {
