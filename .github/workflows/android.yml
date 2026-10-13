@@ -21,6 +21,9 @@ jobs:
     env:
       # Set the repository variable ANDROID_API_URL to your HTTPS backend URL.
       VITE_API_URL: ${{ vars.ANDROID_API_URL || 'https://api.example.com' }}
+      # Set the repository variable ANDROID_CAP_DEV to "true" ONLY when ANDROID_API_URL is a
+      # plain-HTTP dev backend (LAN test). It allows mixed content in the WebView.
+      CAP_DEV: ${{ vars.ANDROID_CAP_DEV || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
