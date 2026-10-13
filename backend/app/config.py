@@ -1,6 +1,7 @@
 """Application settings loaded from environment variables / .env file."""
 
 from functools import cached_property
+from typing import Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,6 +46,16 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     # Comma-separated extra CORS origins (FRONTEND_URL is always included).
     CORS_ORIGINS: str = ""
+
+    # Outgoing email (password reset codes). "console" is for local development only:
+    # it writes the code to the server log. "disabled" sends nothing.
+    EMAIL_BACKEND: Literal["disabled", "console", "smtp"] = "disabled"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "no-reply@rajresumegenie.local"
+    SMTP_USE_TLS: bool = True
 
     @field_validator("SECRET_KEY")
     @classmethod

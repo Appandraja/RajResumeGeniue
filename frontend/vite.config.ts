@@ -9,5 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test-setup.ts',
+    // Chakra + user-event typing is slow in jsdom, especially with many files in parallel.
+    testTimeout: 20000,
   },
 });

@@ -30,6 +30,9 @@ export function getErrorMessage(
     const body = error.response?.data;
     if (body?.error?.message) return body.error.message;
     if (typeof body?.detail === 'string') return body.detail;
+    if (error.response?.status === 429) {
+      return 'Too many attempts. Please wait a few minutes and try again.';
+    }
     if (!error.response) return 'Unable to reach the server. Check your connection.';
   }
   return fallback;
@@ -78,4 +81,23 @@ export function googleLoginUrl(): string {
 
 export function hasStoredSession(): boolean {
   return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY));
+}
+
+/** Asks the backend to email a password reset code. Never reveals whether the account exists. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await api.post('/auth/forgot-password', { email });
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export async function resetPassword(payload: ResetPasswordPayload): Promise<void> {
+  await api.post('/auth/reset-password', {
+    email: payload.email,
+    code: payload.code,
+    new_password: payload.newPassword,
+  });
 }

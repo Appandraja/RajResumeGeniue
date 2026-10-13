@@ -1,9 +1,8 @@
-import { Container, Divider, Heading, Link, Stack, Text } from '@chakra-ui/react';
+import { Divider, Link, Stack, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
+import { AuthLayout } from '../components/auth/AuthLayout';
 import { GoogleLoginButton } from '../components/auth/GoogleLoginButton';
 import { RegisterForm } from '../components/auth/RegisterForm';
-import { PageWrapper } from '../components/layout/PageWrapper';
-import { GlassCard } from '../components/ui/GlassCard';
 import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterPage() {
@@ -24,34 +23,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <PageWrapper>
-      <Container maxW="md" py={16}>
-        <GlassCard>
-          <Stack spacing={6}>
-            <Stack spacing={1}>
-              <Heading as="h1" size="lg">
-                Create your account
-              </Heading>
-              <Text color="gray.600">Build ATS-friendly resumes in minutes.</Text>
-            </Stack>
-            <RegisterForm onSubmit={handleRegister} />
-            <Stack direction="row" align="center">
-              <Divider />
-              <Text fontSize="sm" color="gray.500">
-                or
-              </Text>
-              <Divider />
-            </Stack>
-            <GoogleLoginButton label="Sign up with Google" />
-            <Text fontSize="sm" textAlign="center">
-              Already have an account?{' '}
-              <Link as={RouterLink} to="/login" color="purple.600" fontWeight="semibold">
-                Sign in
-              </Link>
-            </Text>
-          </Stack>
-        </GlassCard>
-      </Container>
-    </PageWrapper>
+    <AuthLayout
+      title="Create your account"
+      subtitle="Build ATS-friendly resumes in minutes."
+      footer={
+        <Text>
+          Already have an account?{' '}
+          <Link as={RouterLink} to="/login" color="purple.600" fontWeight="semibold">
+            Sign in
+          </Link>
+        </Text>
+      }
+    >
+      <Stack spacing={6}>
+        <RegisterForm onSubmit={handleRegister} />
+        <Stack direction="row" align="center">
+          <Divider />
+          <Text fontSize="sm" color="gray.500">
+            or
+          </Text>
+          <Divider />
+        </Stack>
+        <GoogleLoginButton label="Sign up with Google" />
+      </Stack>
+    </AuthLayout>
   );
 }
