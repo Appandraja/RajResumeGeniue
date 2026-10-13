@@ -28,6 +28,9 @@ class Resume(Base, TimestampMixin):
     summary = Column(Text, nullable=True)
     skills: Column[list[str]] = Column(StringList, nullable=False, default=list)
     ats_score = Column(Integer, nullable=True)
+    job_title = Column(String(200), nullable=True)
+    company = Column(String(200), nullable=True)
+    job_description = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="resumes")
     template = relationship("Template", back_populates="resumes")

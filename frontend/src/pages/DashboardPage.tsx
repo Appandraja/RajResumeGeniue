@@ -117,6 +117,9 @@ export default function DashboardPage() {
                 Quick actions
               </Heading>
               <HStack spacing={3} wrap="wrap">
+                <Button as={RouterLink} to="/resumes/import" variant="outline" rounded="full">
+                  Import resume
+                </Button>
                 <Button as={RouterLink} to="/templates" variant="outline" rounded="full">
                   Browse templates
                 </Button>

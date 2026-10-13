@@ -1,17 +1,23 @@
 import {
   Alert,
+  AlertDescription,
   AlertIcon,
+  AlertTitle,
   Box,
   Button,
+  CloseButton,
   Container,
   Grid,
   GridItem,
   Heading,
   HStack,
+  ListItem,
   Text,
+  UnorderedList,
 } from '@chakra-ui/react';
-import { useRef, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { JobDescriptionStep } from '../components/resumes/JobDescriptionStep';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { ContactStep } from '../components/resumes/ContactStep';
 import { EducationStep } from '../components/resumes/EducationStep';
@@ -23,6 +29,7 @@ import { TemplatePicker } from '../components/resumes/TemplatePicker';
 import { WizardStepper } from '../components/resumes/WizardStepper';
 import {
   emptyForm,
+  formFromImportedDraft,
   validateContact,
   validateSections,
   type FormErrors,
@@ -37,8 +44,30 @@ import {
 import { GradientButton } from '../components/ui/GradientButton';
 import { useResumeTemplates } from '../hooks/useResumeTemplates';
 import { getApiErrorMessage } from '../services/resumeService';
+import type { ImportedDraftNavState } from '../types/importer';
 
-const STEPS: string[] = ['Contact', 'Summary', 'Experience', 'Education', 'Skills', 'Template'];
+function isImportedDraftNavState(value: unknown): value is ImportedDraftNavState {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Partial<ImportedDraftNavState>;
+  return (
+    typeof v.importedDraft === 'object' &&
+    v.importedDraft !== null &&
+    Array.isArray(v.importedDraft.skills) &&
+    Array.isArray(v.importedDraft.sections)
+  );
+}
+
+const STEPS: string[] = [
+  'Contact',
+  'Summary',
+  'Experience',
+  'Education',
+  'Skills',
+  'Target job',
+  'Template',
+];
+const JOB_STEP = 5;
+const TEMPLATE_STEP = 6;
 
 const STEP_HELP: string[] = [
   'How can employers reach you?',
@@ -46,18 +75,34 @@ const STEP_HELP: string[] = [
   'Tell us where you have worked.',
   'Tell us about your education.',
   'List the skills that match the jobs you want.',
+  'Optional. Add the job you are applying for to see how well your resume matches.',
   'Pick a look for your resume. All templates are ATS-friendly.',
 ];
 
 export default function ResumeWizardPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<number>(0);
-  const [form, setForm] = useState<ResumeFormState>(emptyForm);
+  const location = useLocation();
+  const [imported] = useState<ImportedDraftNavState | null>(() =>
+    isImportedDraftNavState(location.state) ? location.state : null,
+  );
+  const [showBanner, setShowBanner] = useState<boolean>(imported !== null);
+  const [form, setForm] = useState<ResumeFormState>(() =>
+    imported ? formFromImportedDraft(imported.importedDraft) : emptyForm(),
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const templates = useResumeTemplates();
   const [saving, setSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const progress = useRef<CreateProgress>(newCreateProgress());
+
+  // Consume the router state once so Back or a refresh does not re-apply the import.
+  useEffect(() => {
+    if (imported !== null) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeTemplates = templates.filter((t) => t.is_active);
   const templateId: number | null = form.template_id ?? activeTemplates[0]?.id ?? null;
@@ -114,6 +159,25 @@ export default function ResumeWizardPage() {
         <Text color="gray.600" mb={6}>
           Step {step + 1} of {STEPS.length}. {STEP_HELP[step]}
         </Text>
+        {imported && showBanner && (
+          <Alert status="info" borderRadius="md" mb={6} alignItems="flex-start">
+            <AlertIcon />
+            <Box flex="1">
+              <AlertTitle>Imported from {imported.sourceFileName}</AlertTitle>
+              <AlertDescription display="block">
+                Please review everything before saving.
+                {imported.warnings.length > 0 && (
+                  <UnorderedList mt={2} spacing={1}>
+                    {imported.warnings.map((w) => (
+                      <ListItem key={w}>{w}</ListItem>
+                    ))}
+                  </UnorderedList>
+                )}
+              </AlertDescription>
+            </Box>
+            <CloseButton aria-label="Dismiss import notice" onClick={() => setShowBanner(false)} />
+          </Alert>
+        )}
         <WizardStepper steps={STEPS} current={step} />
 
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={8} mt={8}>
@@ -131,7 +195,8 @@ export default function ResumeWizardPage() {
                 <EducationStep form={form} onSectionsChange={setSections} errors={errors} />
               )}
               {step === 4 && <SkillsStep form={form} onChange={patch} />}
-              {step === 5 && (
+              {step === JOB_STEP && <JobDescriptionStep form={form} onChange={patch} />}
+              {step === TEMPLATE_STEP && (
                 <TemplatePicker
                   value={templateId}
                   onChange={(t) => patch({ template_id: t.id })}

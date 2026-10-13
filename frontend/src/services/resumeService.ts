@@ -13,6 +13,9 @@ export interface ResumePayload {
   website_url: string | null;
   summary: string | null;
   skills: string[];
+  job_title?: string | null;
+  company?: string | null;
+  job_description?: string | null;
 }
 
 export interface SectionPayload {

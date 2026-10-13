@@ -28,6 +28,9 @@ _RESUME_FIELDS = (
     "linkedin_url",
     "website_url",
     "summary",
+    "job_title",
+    "company",
+    "job_description",
 )
 
 

@@ -3,6 +3,7 @@
 fastapi>=0.143.0,<0.200
 uvicorn[standard]>=0.54.0,<1.0
 email-validator>=2.3.0,<3.0
+python-multipart>=0.0.32,<1.0   # resume file uploads
 
 # Config / validation
 pydantic>=2.14.0,<3.0
@@ -21,3 +22,9 @@ httpx>=0.28.1,<1.0
 # Export (text-selectable PDF; pure Python, no native deps on Windows/Docker)
 reportlab>=5.0.1,<6.0
 python-docx>=1.2.0,<2.0
+odfpy>=1.4.1,<2.0               # ODT export and import
+
+# Import (text extraction from uploaded resumes)
+pypdf>=6.20.1,<7                # PDF text
+defusedxml>=0.7.1,<1.0          # safe XML parsing for ODT/DOCX internals
+striprtf>=0.0.26,<1.0           # RTF -> text

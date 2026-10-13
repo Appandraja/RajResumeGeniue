@@ -47,6 +47,22 @@ describe('downloadResume on the Android app', () => {
     );
   });
 
+  it.each([
+    ['odt', 'application/vnd.oasis.opendocument.text'],
+    ['txt', 'text/plain'],
+    ['html', 'text/html'],
+  ] as const)('saves %s with the right extension and mime type', async (format, mime) => {
+    apiGet.mockResolvedValue({
+      data: new Blob(['x']),
+      headers: {},
+    });
+    await downloadResume(7, format);
+    expect(apiGet).toHaveBeenCalledWith(`/api/resumes/7/export/${format}`, { responseType: 'blob' });
+    const written = writeFile.mock.calls[0][0] as { path: string };
+    expect(written.path).toBe(`resume.${format}`);
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ mimeType: mime }));
+  });
+
   it('does not treat a dismissed share sheet as a failure', async () => {
     share.mockRejectedValue(new Error('Share canceled'));
     await expect(downloadResume(7, 'pdf')).resolves.toBeUndefined();

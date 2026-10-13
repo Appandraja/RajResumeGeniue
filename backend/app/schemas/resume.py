@@ -21,6 +21,7 @@ MAX_BULLETS = 15
 MAX_BULLET_LENGTH = 500
 MAX_SKILLS = 50
 MAX_SKILL_LENGTH = 60
+MAX_JOB_DESCRIPTION = 20_000
 
 Bullet = Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_BULLET_LENGTH)]
 Skill = Annotated[
@@ -61,6 +62,9 @@ class ResumeBase(BaseModel):
     linkedin_url: str | None = Field(default=None, max_length=500)
     website_url: str | None = Field(default=None, max_length=500)
     summary: str | None = Field(default=None, max_length=3000)
+    job_title: str | None = Field(default=None, max_length=200)
+    company: str | None = Field(default=None, max_length=200)
+    job_description: str | None = Field(default=None, max_length=MAX_JOB_DESCRIPTION)
 
     @field_validator(
         "full_name",
@@ -70,6 +74,9 @@ class ResumeBase(BaseModel):
         "linkedin_url",
         "website_url",
         "summary",
+        "job_title",
+        "company",
+        "job_description",
         mode="before",
     )
     @classmethod
@@ -207,6 +214,9 @@ class ResumeResponse(BaseModel):
     summary: str | None
     skills: list[str]
     ats_score: int | None
+    job_title: str | None = None
+    company: str | None = None
+    job_description: str | None = None
     sections: list[SectionResponse]
     created_at: datetime
     updated_at: datetime

@@ -1,4 +1,4 @@
-import { Heading, Text, VStack } from '@chakra-ui/react';
+import { Button, Heading, Text, VStack } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { GradientButton } from '../ui/GradientButton';
 
@@ -14,6 +14,9 @@ export function EmptyState() {
       <GradientButton onClick={() => navigate('/resumes/new')}>
         Create my first resume
       </GradientButton>
+      <Button variant="outline" rounded="full" onClick={() => navigate('/resumes/import')}>
+        Import an existing resume
+      </Button>
     </VStack>
   );
 }
