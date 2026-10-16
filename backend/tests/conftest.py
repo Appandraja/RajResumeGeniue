@@ -19,11 +19,11 @@ import bcrypt  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.engine import Engine  # noqa: E402
+from sqlalchemy.engine import Engine, make_url  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from app.database import Base, get_db  # noqa: E402
+from app.database import Base, get_db, normalize_database_url  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Template  # noqa: E402
 from app.rate_limit import ALL_LIMITERS  # noqa: E402
@@ -45,13 +45,31 @@ def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bcrypt, "gensalt", partial(bcrypt.gensalt, rounds=4))
 
 
+def _make_test_engine() -> Engine:
+    """In-memory SQLite by default; set TEST_DATABASE_URL to run the suite on PostgreSQL.
+
+    The suite drops and recreates every table, so a URL is only accepted when its database
+    name contains "test" (a safety net against pointing it at a real database).
+    """
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        return create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    database = make_url(url).database or ""
+    if "test" not in database.lower():
+        raise RuntimeError(
+            f"Refusing to run tests against database {database!r}: its name must contain 'test'."
+        )
+    return create_engine(normalize_database_url(url), pool_pre_ping=True)
+
+
 @pytest.fixture
 def engine() -> Generator[Engine, None, None]:
-    eng = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    eng = _make_test_engine()
+    Base.metadata.drop_all(bind=eng)  # clean slate even if a previous run crashed
     Base.metadata.create_all(bind=eng)
     yield eng
     Base.metadata.drop_all(bind=eng)
