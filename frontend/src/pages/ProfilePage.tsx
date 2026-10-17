@@ -2,31 +2,47 @@ import { useState, type FormEvent } from 'react';
 import {
   Alert,
   AlertIcon,
+  Avatar,
+  Box,
   Button,
   Container,
   FormControl,
   FormErrorMessage,
   FormLabel,
   Heading,
+  HStack,
   Input,
   Stack,
   Text,
+  useToast,
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
+import { buildAccountSummary } from '../components/layout/AppHeader';
 import { PageWrapper } from '../components/layout/PageWrapper';
-import { GlassCard } from '../components/ui/GlassCard';
 import { GradientButton } from '../components/ui/GradientButton';
 import { useAuth } from '../hooks/useAuth';
 import { getErrorMessage } from '../services/authService';
 
+function formatMemberSince(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
 export default function ProfilePage() {
   const { user, updateProfile, logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [fullName, setFullName] = useState<string>(user?.full_name ?? '');
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const account = buildAccountSummary(user?.full_name, user?.email);
+  const memberSince = formatMemberSince(user?.created_at);
 
   const handleSave = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -49,31 +65,70 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async (): Promise<void> => {
-    await logout();
+    setSigningOut(true);
+    try {
+      await logout();
+    } finally {
+      setSigningOut(false);
+    }
     navigate('/login', { replace: true });
+    toast({ title: "You've been signed out", status: 'success', duration: 4000, isClosable: true });
   };
 
   return (
     <PageWrapper>
-      <Container maxW="container.sm" py={16}>
-        <GlassCard>
-          <Stack spacing={6}>
-            <Heading as="h1" size="lg">
-              Your profile
-            </Heading>
-            <Stack spacing={1}>
-              <Text fontSize="sm" color="gray.500">
-                Email
-              </Text>
-              <Text fontWeight="medium">{user?.email}</Text>
-              {user?.oauth_provider && (
-                <Text fontSize="sm" color="gray.500">
-                  Signed in with {user.oauth_provider}
+      <Container maxW="container.sm" py={{ base: 6, md: 10 }}>
+        <Stack spacing={6}>
+          <Box
+            bg="white"
+            rounded="2xl"
+            border="1px solid"
+            borderColor="gray.100"
+            shadow="md"
+            p={{ base: 5, md: 6 }}
+          >
+            <HStack spacing={4} align="center">
+              <Avatar
+                size="xl"
+                name={account.initials}
+                getInitials={() => account.initials}
+                bgGradient="linear(to-br, purple.500, pink.500)"
+                color="white"
+              />
+              <Box minW={0}>
+                <Heading as="h1" size="lg" noOfLines={1}>
+                  {account.name}
+                </Heading>
+                <Text color="gray.600" wordBreak="break-all">
+                  {user?.email}
                 </Text>
-              )}
-            </Stack>
+                {memberSince && (
+                  <Text fontSize="sm" color="gray.500">
+                    Member since {memberSince}
+                  </Text>
+                )}
+                {user?.oauth_provider && (
+                  <Text fontSize="sm" color="gray.500">
+                    Signed in with {user.oauth_provider}
+                  </Text>
+                )}
+              </Box>
+            </HStack>
+          </Box>
+
+          <Box
+            bg="white"
+            rounded="2xl"
+            border="1px solid"
+            borderColor="gray.100"
+            shadow="md"
+            p={{ base: 5, md: 6 }}
+          >
             <form onSubmit={handleSave} noValidate aria-label="Profile form">
               <Stack spacing={4}>
+                <Heading as="h2" size="md">
+                  Edit profile
+                </Heading>
                 {formError && (
                   <Alert status="error" rounded="md" role="alert">
                     <AlertIcon />
@@ -90,6 +145,7 @@ export default function ProfilePage() {
                   <FormLabel>Full name</FormLabel>
                   <Input
                     autoComplete="name"
+                    minH="44px"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                   />
@@ -100,11 +156,20 @@ export default function ProfilePage() {
                 </GradientButton>
               </Stack>
             </form>
-            <Button variant="outline" rounded="full" onClick={handleLogout}>
-              Log out
-            </Button>
-          </Stack>
-        </GlassCard>
+          </Box>
+
+          <Button
+            colorScheme="red"
+            variant="outline"
+            rounded="full"
+            minH="44px"
+            isLoading={signingOut}
+            loadingText="Signing out"
+            onClick={() => void handleLogout()}
+          >
+            Sign out
+          </Button>
+        </Stack>
       </Container>
     </PageWrapper>
   );

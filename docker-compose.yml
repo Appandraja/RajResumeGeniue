@@ -29,6 +29,15 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      # Password-reset email: disabled | console (DEV ONLY, logs the code) | smtp
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-disabled}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@rajresumegenie.local}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     # Apply migrations and seed the ATS-safe templates (idempotent) before serving.
     command:
       - sh
@@ -38,7 +47,8 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      # Host port is configurable (BACKEND_PORT in .env) in case 8000 is already in use.
+      - "${BACKEND_PORT:-8000}:8000"
 
   frontend:
     build:
@@ -49,7 +59,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
 
 volumes:
   postgres_data:

@@ -48,3 +48,24 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     full_name: FullName | None = None
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=1, max_length=32)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    # When given, this session's refresh token stays valid; all other sessions are revoked.
+    refresh_token: str | None = None

@@ -4,7 +4,7 @@ import logging
 from typing import Literal
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -13,17 +13,28 @@ from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.exceptions import BadRequestError
 from app.models.user import User
-from app.rate_limit import limit_google, limit_login, limit_refresh, limit_register
+from app.rate_limit import (
+    limit_forgot,
+    limit_google,
+    limit_login,
+    limit_refresh,
+    limit_register,
+    limit_reset,
+)
 from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
+    MessageResponse,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
     UserUpdate,
 )
-from app.services import auth_service
+from app.services import auth_service, mailer
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +69,53 @@ async def refresh(data: RefreshRequest, db: Session = Depends(get_db)) -> TokenR
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(data: LogoutRequest, db: Session = Depends(get_db)) -> Response:
     auth_service.revoke_refresh_token(db, data.refresh_token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(limit_forgot)],
+)
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """Always answers the same way so account existence cannot be probed."""
+    pending = auth_service.request_password_reset(db, data.email)
+    if pending is not None:
+        email, code = pending
+        background_tasks.add_task(
+            mailer.send_password_reset_email, email, code, auth_service.RESET_CODE_TTL_MINUTES
+        )
+    return MessageResponse(
+        message="If an account exists for that email, a reset code has been sent."
+    )
+
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(limit_reset)],
+)
+async def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)) -> Response:
+    auth_service.reset_password(db, data)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(limit_reset)],
+)
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    auth_service.change_password(db, current_user, data)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

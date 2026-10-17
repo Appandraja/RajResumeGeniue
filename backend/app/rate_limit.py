@@ -60,6 +60,8 @@ limit_refresh = RateLimiter("refresh", limit=30)
 limit_google = RateLimiter("google", limit=20)
 limit_export = RateLimiter("export", limit=20)
 limit_import = RateLimiter("import", limit=10)
+limit_forgot = RateLimiter("forgot", limit=5)
+limit_reset = RateLimiter("reset", limit=10)
 
 ALL_LIMITERS: tuple[RateLimiter, ...] = (
     limit_register,
@@ -68,4 +70,6 @@ ALL_LIMITERS: tuple[RateLimiter, ...] = (
     limit_google,
     limit_export,
     limit_import,
+    limit_forgot,
+    limit_reset,
 )
