@@ -24,7 +24,9 @@ coverage/
 # Environment / secrets
 .env
 .env.*
+# Templates (no secrets) must be tracked, e.g. .env.example and .env.production.example
 !.env.example
+!.env.*.example
 
 # IDE / OS
 .idea/
@@ -34,3 +36,6 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Database dumps written by deploy/vps/backup.sh
+backups/

@@ -1,5 +1,8 @@
 # Deploying RajResumeGenie publicly (Render)
 
+> Using a **Hostinger VPS** (or any Ubuntu server) instead? Follow **[DEPLOY-VPS.md](DEPLOY-VPS.md)**.
+> This page covers Render, a managed alternative with no server to look after.
+
 This puts the API and its PostgreSQL database on the internet over HTTPS, so the Android app
 works on **mobile data and any Wi-Fi**, with your PC switched off. `render.yaml` describes
 everything; Render builds it from this repo.

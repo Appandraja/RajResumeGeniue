@@ -1,0 +1,92 @@
+# Production stack for a single VPS (Hostinger or any Ubuntu server with Docker).
+#
+#   Internet -> Caddy (80/443, automatic HTTPS) -> backend (API)  and  web (the app)
+#                                                    backend -> db (PostgreSQL)
+#
+# Only Caddy publishes ports. The API and the database are reachable by the other containers
+# only, never directly from the internet. Run it through deploy/vps/setup.sh or:
+#   docker compose -f deploy/vps/docker-compose.prod.yml --env-file .env.production up -d --build
+name: rajresumegenie
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rajresumegenie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-rajresumegenie}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ../../backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rajresumegenie}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-rajresumegenie}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env.production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      # The web app is same-origin through Caddy; the Android app runs from https://localhost.
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://localhost}
+      FRONTEND_URL: https://${DOMAIN:?DOMAIN must be set in .env.production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: https://${DOMAIN}/auth/google/callback
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      # Caddy is the single proxy in front of the API and sets X-Forwarded-For itself.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      DEBUG_CLIENT_IP: ${DEBUG_CLIENT_IP:-false}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@rajresumegenie.local}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    # no "ports:": only Caddy can reach the API
+
+  web:
+    build:
+      context: ../../frontend
+      args:
+        # Same origin as the site, so the browser never needs CORS for the web app.
+        VITE_API_URL: https://${DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN must be set in .env.production}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # certificates: keep this volume
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
