@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { useState, type ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { JobDescriptionStep } from '../components/resumes/JobDescriptionStep';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { ContactStep } from '../components/resumes/ContactStep';
 import { EducationStep } from '../components/resumes/EducationStep';
@@ -114,6 +115,9 @@ function ResumeEditor({ resume }: EditorProps) {
           </Block>
           <Block title="Skills">
             <SkillsStep form={form} onChange={patch} />
+          </Block>
+          <Block title="Target job (optional)">
+            <JobDescriptionStep form={form} onChange={patch} />
           </Block>
           <Block title="Template">
             <TemplatePicker value={templateId} onChange={(t) => patch({ template_id: t.id })} />

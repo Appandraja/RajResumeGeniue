@@ -67,13 +67,26 @@ describe('downloadResume', () => {
     expect(clicked[0]?.download).toBe('cv.docx');
   });
 
-  it.each([
-    ['pdf', 'resume.pdf'],
-    ['docx', 'resume.docx'],
-  ] as const)('falls back to a default %s filename without a header', async (format, expected) => {
-    vi.mocked(api.get).mockResolvedValue(okResponse());
-    await downloadResume(1, format);
-    expect(clicked[0]?.download).toBe(expected);
+  it.each(['pdf', 'docx', 'odt', 'rtf', 'txt', 'md', 'html'] as const)(
+    'requests /export/%s and falls back to resume.%s without a header',
+    async (format) => {
+      vi.mocked(api.get).mockResolvedValue(okResponse());
+      await downloadResume(3, format);
+      expect(api.get).toHaveBeenCalledWith(`/api/resumes/3/export/${format}`, {
+        responseType: 'blob',
+      });
+      expect(clicked[0]?.download).toBe(`resume.${format}`);
+    },
+  );
+
+  it('keeps the server message for a PDF 400 and suggests another format', async () => {
+    const body = JSON.stringify({
+      error: { code: 'BAD_REQUEST', message: 'Some characters are not supported in PDF.' },
+    });
+    vi.mocked(api.get).mockRejectedValue(errorResponse(400, body));
+    await expect(downloadResume(1, 'pdf')).rejects.toThrow(
+      /Some characters are not supported in PDF\..*another format/,
+    );
   });
 
   it('maps 501 to a not-available message', async () => {

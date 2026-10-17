@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import DashboardPage from './pages/DashboardPage';
+import ImportResumePage from './pages/ImportResumePage';
 import LoginPage from './pages/LoginPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import ProfilePage from './pages/ProfilePage';
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/resumes" element={<ResumeListPage />} />
+            <Route path="/resumes/import" element={<ImportResumePage />} />
             <Route path="/resumes/new" element={<ResumeWizardPage />} />
             <Route path="/resumes/:id" element={<ResumeDetailPage />} />
             <Route path="/resumes/:id/edit" element={<ResumeEditPage />} />

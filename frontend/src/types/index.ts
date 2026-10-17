@@ -56,6 +56,9 @@ export interface Resume {
   summary: string | null;
   skills: string[];
   ats_score: number | null;
+  job_title?: string | null;
+  company?: string | null;
+  job_description?: string | null;
   sections: ResumeSection[];
   created_at: string;
   updated_at: string;

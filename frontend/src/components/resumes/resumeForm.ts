@@ -1,4 +1,5 @@
 import type { Resume, ResumeSection, ResumeSectionType } from '../../types';
+import type { ImportedDraft } from '../../types/importer';
 import type { ResumePayload, SectionPayload } from '../../services/resumeService';
 
 export interface SectionDraft {
@@ -26,8 +27,13 @@ export interface ResumeFormState {
   website_url: string;
   summary: string;
   skills: string[];
+  job_title: string;
+  company: string;
+  job_description: string;
   sections: SectionDraft[];
 }
+
+export const MAX_JOB_DESCRIPTION = 20000;
 
 export type FormErrors = Partial<Record<string, string>>;
 
@@ -49,6 +55,9 @@ export function emptyForm(): ResumeFormState {
     website_url: '',
     summary: '',
     skills: [],
+    job_title: '',
+    company: '',
+    job_description: '',
     sections: [],
   };
 }
@@ -93,7 +102,54 @@ export function formFromResume(r: Resume): ResumeFormState {
     website_url: r.website_url ?? '',
     summary: r.summary ?? '',
     skills: r.skills,
+    job_title: r.job_title ?? '',
+    company: r.company ?? '',
+    job_description: r.job_description ?? '',
     sections: [...r.sections].sort((a, b) => a.position - b.position).map(draftFromSection),
+  };
+}
+
+/**
+ * Maps an imported draft to form state. Unknown values stay empty; nothing is invented.
+ * A null end date with a start date means "Present", which the form represents as ''.
+ */
+export function formFromImportedDraft(draft: ImportedDraft): ResumeFormState {
+  const seen = new Set<string>();
+  const skills: string[] = [];
+  for (const raw of draft.skills) {
+    const skill = raw.trim();
+    const key = skill.toLowerCase();
+    if (skill && !seen.has(key)) {
+      seen.add(key);
+      skills.push(skill);
+    }
+  }
+  const sections: SectionDraft[] = [...draft.sections]
+    .sort((a, b) => a.position - b.position)
+    .filter((s) => s.type === 'experience' || s.type === 'education' || s.title.trim() !== '')
+    .map((s) => ({
+      key: nextKey(),
+      id: null,
+      type: s.type,
+      title: s.title ?? '',
+      organization: s.organization ?? '',
+      location: s.location ?? '',
+      start_date: s.start_date ?? '',
+      end_date: s.end_date ?? '',
+      bullets: s.bullets.map((b) => b.trim()).filter((b) => b.length > 0),
+    }));
+  return {
+    ...emptyForm(),
+    title: draft.title ?? '',
+    full_name: draft.full_name ?? '',
+    email: draft.email ?? '',
+    phone: draft.phone ?? '',
+    location: draft.location ?? '',
+    linkedin_url: draft.linkedin_url ?? '',
+    website_url: draft.website_url ?? '',
+    summary: draft.summary ?? '',
+    skills,
+    sections,
   };
 }
 
@@ -111,6 +167,9 @@ export function toResumePayload(f: ResumeFormState, templateId: number): ResumeP
     website_url: orNull(f.website_url),
     summary: orNull(f.summary),
     skills: f.skills,
+    job_title: orNull(f.job_title),
+    company: orNull(f.company),
+    job_description: orNull(f.job_description),
   };
 }
 

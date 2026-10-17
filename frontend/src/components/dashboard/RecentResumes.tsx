@@ -26,6 +26,9 @@ export function RecentResumes({ resumes, templateNames }: RecentResumesProps) {
         <GradientButton onClick={() => navigate('/resumes/new')}>
           Create my first resume
         </GradientButton>
+        <Button variant="outline" rounded="full" onClick={() => navigate('/resumes/import')}>
+          Import an existing resume
+        </Button>
       </VStack>
     );
   }

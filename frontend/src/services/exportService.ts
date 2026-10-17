@@ -1,23 +1,19 @@
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { isAxiosError } from 'axios';
+import { getExportFormat, type ExportFormat } from '../lib/exportFormats';
 import { isNativeApp } from '../lib/platform';
 import api from './api';
 
-export type ExportFormat = 'pdf' | 'docx';
+export type { ExportFormat };
 
 interface ApiErrorBody {
   error?: { code?: string; message?: string };
 }
 
-const FALLBACK_FILENAMES: Record<ExportFormat, string> = {
-  pdf: 'resume.pdf',
-  docx: 'resume.docx',
-};
-
 function filenameFromDisposition(header: string | undefined, format: ExportFormat): string {
   const match = header?.match(/filename="?([^";]+)"?/i);
-  return match?.[1] ?? FALLBACK_FILENAMES[format];
+  return match?.[1] ?? `resume.${getExportFormat(format).extension}`;
 }
 
 /** Error responses arrive as a Blob when responseType is 'blob'; unwrap the message. */
@@ -32,7 +28,11 @@ async function messageFromError(err: unknown, format: ExportFormat): Promise<str
       try {
         const body = JSON.parse(await data.text()) as ApiErrorBody;
         if (body.error?.message) {
-          return body.error.message;
+          const hint =
+            format === 'pdf' && err.response.status === 400
+              ? ' You can download another format instead, such as Word or Plain text.'
+              : '';
+          return `${body.error.message}${hint}`;
         }
       } catch {
         // fall through to the generic message
@@ -41,6 +41,8 @@ async function messageFromError(err: unknown, format: ExportFormat): Promise<str
   }
   return `Could not export your resume as ${label}. Please try again.`;
 }
+
+type ShareOptionsWithMime = Parameters<typeof Share.share>[0] & { mimeType?: string };
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -62,7 +64,7 @@ function blobToBase64(blob: Blob): Promise<string> {
  * Android WebViews cannot save a blob through an <a download> link, so the app writes the
  * file to its cache and opens the system share sheet (Save to Drive / Files, email, ...).
  */
-async function saveAndShare(blob: Blob, filename: string): Promise<void> {
+async function saveAndShare(blob: Blob, filename: string, format: ExportFormat): Promise<void> {
   const localName = filename.replace(/[^A-Za-z0-9._-]/g, '_');
   const written = await Filesystem.writeFile({
     path: localName,
@@ -70,11 +72,14 @@ async function saveAndShare(blob: Blob, filename: string): Promise<void> {
     directory: Directory.Cache,
   });
   try {
-    await Share.share({
+    // mimeType is not in every version of the Share typings; the plugin ignores unknown keys.
+    const options: ShareOptionsWithMime = {
       title: localName,
       dialogTitle: 'Save or share your resume',
       url: written.uri,
-    });
+      mimeType: getExportFormat(format).mime,
+    };
+    await Share.share(options);
   } catch (err) {
     // Dismissing the share sheet is not an error.
     if (!(err instanceof Error && /cancel/i.test(err.message))) {
@@ -104,7 +109,7 @@ export async function downloadResume(resumeId: number, format: ExportFormat): Pr
     const filename = filenameFromDisposition(disposition, format);
 
     if (isNativeApp()) {
-      await saveAndShare(response.data, filename);
+      await saveAndShare(response.data, filename, format);
     } else {
       saveInBrowser(response.data, filename);
     }

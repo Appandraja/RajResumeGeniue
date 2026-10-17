@@ -15,6 +15,7 @@ import {
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { AtsScorePanel } from '../components/resumes/AtsScorePanel';
+import { TailorPanel } from '../components/resumes/TailorPanel';
 import { ExportButtons } from '../components/resumes/ExportButtons';
 import { ResumePreview } from '../components/resumes/ResumePreview';
 import { formFromResume } from '../components/resumes/resumeForm';
@@ -63,9 +64,9 @@ export default function ResumeDetailPage() {
           )}
         </HStack>
 
-        {loading && <Skeleton h="500px" borderRadius="md" />}
+        {loading && !resume && <Skeleton h="500px" borderRadius="md" />}
 
-        {!loading && error && (
+        {error && (
           <Alert status="error" borderRadius="md">
             <AlertIcon />
             <Text flex="1">{error}</Text>
@@ -75,13 +76,14 @@ export default function ResumeDetailPage() {
           </Alert>
         )}
 
-        {!loading && resume && (
+        {resume && (
           <Grid templateColumns={{ base: '1fr', lg: '2fr 1fr' }} gap={8}>
             <GridItem>
               <ResumePreview form={formFromResume(resume)} template={template} />
             </GridItem>
             <GridItem>
               <VStack align="stretch" spacing={6}>
+                <TailorPanel key={resume.id} resume={resume} onResumeChanged={reload} />
                 <AtsScorePanel resumeId={resume.id} />
               </VStack>
             </GridItem>

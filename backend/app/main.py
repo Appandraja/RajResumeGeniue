@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.exceptions import register_exception_handlers
-from app.routers import auth, export, resumes, templates
+from app.routers import auth, export, imports, resumes, tailor, templates
 
 
 def configure_logging() -> None:
@@ -55,6 +55,8 @@ def create_app() -> FastAPI:
     application.include_router(templates.router)
     application.include_router(resumes.router)
     application.include_router(export.router)
+    application.include_router(tailor.router)
+    application.include_router(imports.router)
 
     @application.get("/health", tags=["health"])
     async def health() -> dict[str, str]:

@@ -58,9 +58,19 @@ export default function ResumeListPage() {
             <Text color="gray.600">Create, edit and download your resumes.</Text>
           </div>
           {resumes.length > 0 && (
-            <GradientButton onClick={() => navigate('/resumes/new')}>
-              New resume
-            </GradientButton>
+            <HStack spacing={3}>
+              <Button
+                variant="outline"
+                rounded="full"
+                colorScheme="purple"
+                onClick={() => navigate('/resumes/import')}
+              >
+                Import resume
+              </Button>
+              <GradientButton onClick={() => navigate('/resumes/new')}>
+                New resume
+              </GradientButton>
+            </HStack>
           )}
         </HStack>
 
