@@ -1,0 +1,106 @@
+# Render Blueprint: backend API + PostgreSQL (+ optional web app).
+# Dashboard: New + -> Blueprint -> pick this repo and branch "main" -> review -> Apply.
+# Step-by-step guide and costs: see DEPLOY.md.
+#
+# PLANS: both are set to "free" so trying this costs nothing, but note the limits:
+#   * free web services sleep after ~15 min idle; the next request waits ~30-60 s to wake it
+#   * the free PostgreSQL database EXPIRES after ~30 days and its data is deleted
+# For real use change the two "plan:" lines below to "starter" (web) and "basic-256mb" (db)
+# before applying, or upgrade later in the dashboard. Check render.com/pricing for current prices.
+
+databases:
+  - name: rajresumegenie-db
+    databaseName: rajresumegenie
+    user: rajresumegenie
+    region: singapore        # closest to India; change if your users are elsewhere
+    plan: free
+
+services:
+  # ---------------------------------------------------------------- backend API
+  - type: web
+    name: rajresumegenie-api
+    runtime: docker
+    region: singapore        # keep in the same region as the database
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true         # redeploy on every push to the branch
+    # Apply migrations and the (idempotent) template seed, then serve.
+    dockerCommand: sh -c "alembic upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    envVars:
+      - key: PORT
+        value: "8000"        # matches the Dockerfile EXPOSE and healthcheck
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rajresumegenie-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true  # random, kept private; signs sign-in tokens
+      # The Android app runs inside a WebView served from https://localhost; the web app
+      # (below) is the other allowed browser origin.
+      - key: CORS_ORIGINS
+        value: https://localhost,https://rajresumegenie-web.onrender.com
+      - key: FRONTEND_URL
+        value: https://rajresumegenie-web.onrender.com
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      # Render puts a load balancer in front of the app, so every request would otherwise
+      # look like it comes from one address and share one rate-limit bucket. This is the
+      # number of proxies that append to X-Forwarded-For. It must be VERIFIED after the
+      # first deploy (see DEPLOY.md, "Calibrate the proxy setting").
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
+      - key: DEBUG_CLIENT_IP
+        value: "true"        # TEMPORARY: set to "false" once TRUSTED_PROXY_HOPS is verified
+      # Password-reset email. "console" writes the 8-digit code to this service's log
+      # (visible only to you in the Render dashboard): fine for testing, NOT for real users.
+      # For real users set EMAIL_BACKEND=smtp and fill the SMTP_* values.
+      - key: EMAIL_BACKEND
+        value: console
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # Optional Google sign-in (leave blank to skip; needs a public HTTPS redirect URI).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+  # ------------------------------------------------- optional: the web app (static)
+  # Delete this whole block if you only need the Android app.
+  - type: web
+    name: rajresumegenie-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Baked in at build time. If Render gives the API a different address than this,
+      # correct it here (and in CORS_ORIGINS / FRONTEND_URL above) and redeploy.
+      - key: VITE_API_URL
+        value: https://rajresumegenie-api.onrender.com
+    routes:
+      - type: rewrite        # single-page app: every path serves index.html
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
