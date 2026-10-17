@@ -1,0 +1,37 @@
+# Caddy gets and renews the HTTPS certificate for {$DOMAIN} automatically (Let's Encrypt),
+# redirects HTTP to HTTPS, and routes requests. Only the API paths below reach the backend;
+# the interactive API docs are intentionally NOT exposed publicly.
+#
+# Caddy overwrites any X-Forwarded-For sent by the client with the real connection address, so
+# the backend sees a single trustworthy entry (TRUSTED_PROXY_HOPS=1) and clients cannot forge it.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Resume uploads are capped at 5 MB by the API; refuse anything much bigger early.
+	request_body {
+		max_size 7MB
+	}
+
+	@api path /auth/* /api/* /health
+	handle @api {
+		reverse_proxy backend:8000 {
+			# Fail fast and let Docker's restart policy recover a hung backend.
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 60s
+			}
+		}
+	}
+
+	# Everything else is the web app (single-page app served by nginx in the web container).
+	handle {
+		reverse_proxy web:80
+	}
+}
