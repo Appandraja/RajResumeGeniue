@@ -5,6 +5,7 @@ single process against credential stuffing and CPU-heavy abuse; behind multiple
 workers or replicas, put a shared limiter (e.g. reverse proxy or Redis) in front.
 """
 
+import ipaddress
 import logging
 import time
 from collections import deque
@@ -18,6 +19,27 @@ from app.exceptions import TooManyRequestsError
 logger = logging.getLogger(__name__)
 
 _MAX_TRACKED_KEYS = 10_000
+
+
+def client_ip(request: Request) -> str:
+    """The caller's IP address, honouring a known number of trusted proxies.
+
+    With TRUSTED_PROXY_HOPS = n > 0 the address is the n-th entry from the RIGHT of
+    X-Forwarded-For: the entries on the left are client-controlled and can be forged,
+    the ones appended by your own proxies cannot. Anything malformed or missing falls back
+    to the socket peer, so a bad header never lets a caller pick its own rate-limit bucket.
+    """
+    peer = request.client.host if request.client else "unknown"
+    hops = settings.TRUSTED_PROXY_HOPS
+    if hops <= 0:
+        return peer
+    chain = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+    if len(chain) < hops:
+        return peer
+    try:
+        return str(ipaddress.ip_address(chain[-hops]))
+    except ValueError:
+        return peer
 
 
 class RateLimiter:
@@ -38,7 +60,7 @@ class RateLimiter:
     def __call__(self, request: Request) -> None:
         if not settings.RATE_LIMIT_ENABLED:
             return
-        client = request.client.host if request.client else "unknown"
+        client = client_ip(request)
         now = time.monotonic()
         cutoff = now - self.window_seconds
         with self._lock:

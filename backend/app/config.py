@@ -3,7 +3,7 @@
 from functools import cached_property
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PLACEHOLDER_SECRETS = {
@@ -38,6 +38,14 @@ class Settings(BaseSettings):
 
     # In-process, per-client-IP request limits on auth and export endpoints.
     RATE_LIMIT_ENABLED: bool = True
+    # How many reverse proxies sit in front of the app and append to X-Forwarded-For
+    # (0 = none: use the socket address and ignore the header). The client IP is the entry
+    # that many places from the RIGHT, which only your own proxies can write, so clients
+    # cannot spoof it. Calibrate after deploying with DEBUG_CLIENT_IP.
+    TRUSTED_PROXY_HOPS: int = Field(default=0, ge=0, le=5)
+    # Temporary diagnostic: echo the resolved client IP and the forwarded chain in response
+    # headers so TRUSTED_PROXY_HOPS can be verified on a new host. Keep false otherwise.
+    DEBUG_CLIENT_IP: bool = False
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

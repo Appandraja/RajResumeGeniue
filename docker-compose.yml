@@ -30,6 +30,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      # Number of reverse proxies in front of the API (0 = none). See DEPLOY.md.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+      DEBUG_CLIENT_IP: ${DEBUG_CLIENT_IP:-false}
       # Password-reset email: disabled | console (DEV ONLY, logs the code) | smtp
       EMAIL_BACKEND: ${EMAIL_BACKEND:-disabled}
       SMTP_HOST: ${SMTP_HOST:-}

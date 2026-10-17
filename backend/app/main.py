@@ -3,11 +3,13 @@
 import logging
 import logging.config
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import RequestResponseEndpoint
 
 from app.config import settings
 from app.exceptions import register_exception_handlers
+from app.rate_limit import client_ip
 from app.routers import auth, export, imports, resumes, tailor, templates
 
 
@@ -49,6 +51,21 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(application)
+
+    if settings.DEBUG_CLIENT_IP:
+        # Temporary diagnostic for calibrating TRUSTED_PROXY_HOPS on a new host.
+        # Exposes no secrets: only the caller's own address and the forwarded chain.
+        logger.warning("DEBUG_CLIENT_IP is on: turn it off once TRUSTED_PROXY_HOPS is verified")
+
+        @application.middleware("http")
+        async def _debug_client_ip(
+            request: Request, call_next: RequestResponseEndpoint
+        ) -> Response:
+            response = await call_next(request)
+            response.headers["X-Debug-Client-IP"] = client_ip(request)
+            response.headers["X-Debug-Peer"] = request.client.host if request.client else ""
+            response.headers["X-Debug-Forwarded-For"] = request.headers.get("x-forwarded-for", "")
+            return response
 
     # Routers carry their own prefixes: /auth/* and /api/*
     application.include_router(auth.router)
